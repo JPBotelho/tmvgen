@@ -1,0 +1,1 @@
+ffmpeg -i "first.mp3"  -i "second.mp3" -filter_complex "[1:v]scale=600:-1;[0:a][1:a]concat=n=2:v=0:a=1[final]" -map 0:v  -map [final]:a -t 500 -r 30 -movflags +faststart "output.mp4"

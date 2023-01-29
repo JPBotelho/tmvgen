@@ -1,0 +1,6 @@
+file 'file:C:\Users\world\Documents\ffmpeg\4 - MC Ren - Right Up My Alley.mp3'
+file 'file:C:\Users\world\Documents\ffmpeg\5 - MC Ren - Hounddogz.mp3'
+file 'file:C:\Users\world\Documents\ffmpeg\first.mp3'
+file 'file:C:\Users\world\Documents\ffmpeg\second.mp3'
+file 'file:C:\Users\world\Documents\ffmpeg\test1.flac'
+file 'file:C:\Users\world\Documents\ffmpeg\test2.flac'

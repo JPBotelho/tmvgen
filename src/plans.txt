@@ -36,6 +36,9 @@ ffmpeg
 -movflags +faststart 
 "output.mp4"
 
+// SINGLE VIDEO ALTERNATIVE ???
+ffmpeg -i first.mp3 -f concat -i list.txt -c:v libx264 -c:a copy -t 60 -r 24 output.mp4
+
 
 
 Recursive: Launch it in a directory and it will run itself in subdirectories
@@ -93,6 +96,10 @@ IF JOB QUEUE EMPTY:
 ON JOB-END CALLBACK: (python futures)
 GOTO TRYWORK
 
+LOOK FOR IMAGE IN FOLDER, IF NONE FOUND:
+LOOK FOR IMAGE IN EXTRACTED CACHE, IF NONE FOUND:
+TRY TO EXTRACT IMAGE FROM MP3 
+
 
 ffmpeg -loop 1 -framerate 1 -i "folder.jpg" -i  "first.mp3"  -i "second.mp3" -filter_complex "[0:v]scale=600:-1[vid];[1:a][2:a]concat=n=2:v=0:a=1[final]" -map "[final]" -map "[vid]" -t 378 -r 1 -movflags +faststart "output3.mp4"
 
@@ -104,3 +111,13 @@ ffmpeg -loop 1 -framerate 1 -i "folder.jpg" -i  "first.mp3"  -i "second.mp3" -fi
 
 -y automatically overwrites
 -n never overwrites
+
+
+//this seems to work for single:
+ffmpeg -loop 1 -framerate 
+1 -i "folder.jpg" -i "first.mp3" -map 0:v -map 1:a -b:a 320k -shortest -r 1 -movflags +faststart "output.mp4"
+
+// works for single and youtube: 
+ffmpeg -i "first.mp3" -filter_complex "[0:v]scale=-1:-1[vid];[vid]loop=loop=-1:size=1:start=0[vid2]" -map [vid2]:v -map 0:a -b:a 320k -shortest -r 1 -movflags +faststart "output.mp4"
+
+ffmpeg -loop 1 -framerate 1 -i "folder.jpg" -i  "first.mp3" -i "second.mp3" -filter_complex "[0:v]scale=600:-1[vid]; [1:a][2:a]concat=n=2:v=0:a=1[final]" -map [vid]:v -map [final]:a -t 378 -r 1 -movflags +faststart "output.mp4"

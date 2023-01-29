@@ -5,24 +5,26 @@ from pathlib import Path
 from pathlib import PurePath
 import subprocess
 from concurrent.futures import ThreadPoolExecutor as Pool
-
+from threading import Lock
 dirsToProcess = []
 jobQueue = []
 
-maxJobs = 2
+maxJobs = 5
 activeJobs = 0
 
 genIndiv = True
 genFolder = False
-
+genId = 0
 reenc = False
 
 validAudioFiles = [ ".flac", ".mp3" ]
 
 pool = Pool(max_workers=maxJobs)
 
+mutex = Lock()
 
 def main():
+    global activeJobs
     print("test")
     numArgs = len(sys.argv)
     print("Total Arguments: ", numArgs)
@@ -32,9 +34,21 @@ def main():
     processDirectory()
     print("Is valid directory:", p.is_dir())
     
-    while(True):
+    while(True):  
+        # print("EXECUTED")  
+        if( activeJobs == 0 and len(jobQueue) == 0 and len(dirsToProcess) == 0):
+            print("ALL JOBS FINISHED")
+            return    
+        if activeJobs < maxJobs:
+            if len(jobQueue) > 0:
+                print("Started new job")
+                startJob(jobQueue.pop())
+            else:
+                if(len(dirsToProcess) > 0):
+                    print("Processing new directory")
+                    processDirectory()
+                    
         # implement main loop
-        break
     
 
     
@@ -56,7 +70,6 @@ def processDirectory():
         if(child.suffix in validAudioFiles):
             # Job can be started automatically
             if(len(jobQueue) == 0 and activeJobs < maxJobs):
-                activeJobs += 1
                 startJob(child.resolve())
             else:
                 jobQueue.append(child.resolve())
@@ -69,18 +82,36 @@ def processDirectory():
             f.close()
             
 def startJob(job):
-    print(job)
+    global genId
+    global activeJobs
+    
+    genId += 1
+    #print(job)
     # to-do: bitrate
-    command = f"ffmpeg -y -i  \"{job}\" -filter_complex \"[0:v]scale=-1:-1[vid]\" -map [vid]:v -map 0:a -t 378 -r 1 -movflags +faststart \"output{activeJobs}.mp4\""
+    p = PurePath(job)
+    outputFile = job.resolve().__str__().replace(p.suffix, ".mp4")
+    mutex.acquire()
+    activeJobs += 1
+    mutex.release()
+    command = f"ffmpeg -y -i  \"{job}\" -filter_complex \"[0:v]scale=-1:-1[vid]\" -map [vid]:v -map 0:a -t 378 -r 1 -movflags +faststart \"{outputFile}\""
     f = pool.submit(subprocess.call, command, shell=True)
     f.add_done_callback(jobCallback)
+    
+    
+    
+    
     return
 
 def jobCallback(future):
+    global activeJobs
     if future.exception() is not None:
         print("Exception encountered!")
     else:
         print("Job finished")
+        
+    mutex.acquire()
+    activeJobs -= 1
+    mutex.release()
     
     
 

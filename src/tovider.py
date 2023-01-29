@@ -6,23 +6,35 @@ from pathlib import PurePath
 import subprocess
 from concurrent.futures import ThreadPoolExecutor as Pool
 from threading import Lock
-dirsToProcess = []
-jobQueue = []
 
-maxJobs = 5
-activeJobs = 0
 
+# CONFIG
+validAudioFiles = [ ".flac", ".mp3" ]
+validImageExtensions = [ ".png", ".jpg", ".jpeg" ]
 genIndiv = True
-genFolder = False
+genFolder = True
 genId = 0
 reenc = False
 
-validAudioFiles = [ ".flac", ".mp3" ]
+# GLOBAL JOB VARIABLES
+dirsToProcess = []
+jobQueue = []
+maxJobs = 5
+activeJobs = 0
 
+# MULTITHREADING
 pool = Pool(max_workers=maxJobs)
-
 mutex = Lock()
 
+# CACHE
+cacheFolder = os.path.dirname(os.path.realpath(__file__)) + "\\cache\\"
+currCacheId = 0
+
+# Directory -> Path to cover image in cache 
+imgCacheDict = {}
+
+# Directory -> Path to list.txt file in cache
+listCacheDict = {}
 def main():
     global activeJobs
     print("test")
@@ -41,33 +53,47 @@ def main():
             return    
         if activeJobs < maxJobs:
             if len(jobQueue) > 0:
-                print("Started new job")
                 startJob(jobQueue.pop())
             else:
                 if(len(dirsToProcess) > 0):
                     print("Processing new directory")
-                    processDirectory()
-                    
-        # implement main loop
+                    processDirectory()                    
+       
     
 
     
     
 
 def processDirectory():
-    global activeJobs, maxJobs
+    global activeJobs, maxJobs, currCacheId
+    if len(dirsToProcess) == 0:
+        return
     dir = dirsToProcess.pop()
+    print(dir.resolve())
     
+    imageFound = False
+    audioTrack = None
     # FFMPEG requires files to be in a list
     # for concat without reencoding
-    if(genFolder and not reenc):        
-        f = open(dir.resolve() / "list.txt", "w")    
+    if(genFolder and not reenc):
+        f = open(cacheFolder + f"list{currCacheId}.txt", "w")    
+        currCacheId += 1
+        listCacheDict[dir] = f
+        
+    
     for child in dir.iterdir():
         if child.is_dir():
             dirsToProcess.append(child)
             
         file = PurePath(child)
         if(child.suffix in validAudioFiles):
+            #todo: keep track of length in case of folder video
+            #todo: keep track of bitrate in case of folder video
+            
+            # Keep track of an audio track in case image was not found
+            # In order to extract embedded cover image
+            audioTrack = child
+            
             # Job can be started automatically
             if(len(jobQueue) == 0 and activeJobs < maxJobs):
                 startJob(child.resolve())
@@ -76,6 +102,10 @@ def processDirectory():
                 
             if(genFolder and not reenc):
                 f.write(f"file 'file:{child.resolve()}'\n")
+                
+        elif(child.suffix in validImageExtensions):
+            imgCacheDict[dir] = child
+            
     if(genFolder):            
         jobQueue.append(dir.resolve())
         if not reenc:
@@ -85,8 +115,8 @@ def startJob(job):
     global genId
     global activeJobs
     
-    genId += 1
-    #print(job)
+    print("Started job: ", job)
+
     # to-do: bitrate
     p = PurePath(job)
     outputFile = job.resolve().__str__().replace(p.suffix, ".mp4")
@@ -94,8 +124,11 @@ def startJob(job):
     activeJobs += 1
     mutex.release()
     #command = f"ffmpeg -y -i  \"{job}\" -filter_complex \"[0:v]scale=-1:-1[vid]\" -map [vid]:v -map 0:a -t 378 -r 1 -movflags +faststart \"{outputFile}\""
-    command = f"ffmpeg -i \"{job}\" -filter_complex \"[0:v]scale=-1:-1[vid];[vid]loop=loop=-1:size=1:start=0[vid2]\" -map [vid2]:v -map 0:a -b:a 320k -shortest -r 1 -movflags +faststart \"{outputFile}\""
-    f = pool.submit(subprocess.call, command, shell=True)
+    command = f"ffmpeg -y -i \"{job}\" -filter_complex \"[0:v]scale=-1:-1[vid];[vid]loop=loop=-1:size=1:start=0[vid2]\" -map [vid2]:v -map 0:a -b:a 320k -shortest -r 1 -movflags +faststart \"{outputFile}\""
+    
+    #to-do: remove stdout from showing
+    
+    f = pool.submit(subprocess.run, command, shell=True, stderr=subprocess.DEVNULL)
     f.add_done_callback(jobCallback)
     
     
@@ -105,6 +138,8 @@ def startJob(job):
 
 def jobCallback(future):
     global activeJobs
+    # todo: fix result.args being messed up
+    print("Finished: " + future._result.args)
     if future.exception() is not None:
         print("Exception encountered!")
     else:

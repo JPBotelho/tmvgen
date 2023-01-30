@@ -1,0 +1,13 @@
+ #108#320
+file 'file:C:\Users\world\Documents\ffmpeg\src\dir\Slayer - Reign In Blood (Expanded)\01 - Angel Of Death.mp3'
+file 'file:C:\Users\world\Documents\ffmpeg\src\dir\Slayer - Reign In Blood (Expanded)\02 - Piece By Piece.mp3'
+file 'file:C:\Users\world\Documents\ffmpeg\src\dir\Slayer - Reign In Blood (Expanded)\03 - Necrophobic.mp3'
+file 'file:C:\Users\world\Documents\ffmpeg\src\dir\Slayer - Reign In Blood (Expanded)\04 - Altar Of Sacrifice.mp3'
+file 'file:C:\Users\world\Documents\ffmpeg\src\dir\Slayer - Reign In Blood (Expanded)\05 - Jesus Saves.mp3'
+file 'file:C:\Users\world\Documents\ffmpeg\src\dir\Slayer - Reign In Blood (Expanded)\06 - Criminally Insane.mp3'
+file 'file:C:\Users\world\Documents\ffmpeg\src\dir\Slayer - Reign In Blood (Expanded)\07 - Reborn.mp3'
+file 'file:C:\Users\world\Documents\ffmpeg\src\dir\Slayer - Reign In Blood (Expanded)\08 - Epidemic.mp3'
+file 'file:C:\Users\world\Documents\ffmpeg\src\dir\Slayer - Reign In Blood (Expanded)\09 - Postmortem.mp3'
+file 'file:C:\Users\world\Documents\ffmpeg\src\dir\Slayer - Reign In Blood (Expanded)\10 - Raining Blood.mp3'
+file 'file:C:\Users\world\Documents\ffmpeg\src\dir\Slayer - Reign In Blood (Expanded)\11 - Aggressive Perfector.mp3'
+file 'file:C:\Users\world\Documents\ffmpeg\src\dir\Slayer - Reign In Blood (Expanded)\12 - Criminally Insane.mp3'

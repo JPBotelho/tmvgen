@@ -28,7 +28,14 @@ class cmdGen:
     # output file
     # bitrate
     def snglExternal(self, inp, img, out, br):
-        return
+        command = (f"ffmpeg {self.owflg} -loop 1 -framerate 1 " 
+                  f"-i \"{img}\" "
+                  f"-i \"{inp}\" "
+                  "-map 0:v " 
+                  "-map 1:a " 
+                  f"-b:a {br}k "
+                  f"-shortest -r 1 -movflags +faststart \"{out}\"")
+        return command
     
     # input directory
     # cover image file
@@ -52,6 +59,15 @@ class cmdGen:
     # bitrate
     def folderConcat(self, inputDir, out, br):
         return
+    
+    # extracts embedded cover art 
+    # does not check if cover art exists
+    # input file
+    # output image
+    def extractImage(self, file, out):
+        command = f"ffmpeg {self.owflg} -i \"{file}\" -an -vcodec copy \"{out}\""
+        return command
+    
 
 
 c = cmdGen(True)

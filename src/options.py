@@ -8,6 +8,7 @@ class options:
 
     # generate videos per track
     genIndiv = True
+    extractImg = True
 
     # generate videos per folder
     genFolder = True

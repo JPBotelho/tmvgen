@@ -72,7 +72,22 @@ def processDirectory(dir):
             
             fileBitrate = getBitrate(audioFile)
             
-            command = cGen.snglEmbedded(audioFile, replaceWithMP4(audioFile), fileBitrate)
+            # Individual file commands can be one of three:
+            # Generate from embedded cover art (-loop filter) (snglEmbedded)
+            # Generate from embedded cover art (extract image to cache first)
+            # NOTIMPLEMENTED Generate from folder image (snglExternal)
+            
+            outputFile = replaceWithMP4(audioFile)
+            if(not m.extractImg):
+                command = cGen.snglEmbedded(audioFile, outputFile, fileBitrate)
+            else:
+                if(imageFound):
+                    coverImg = m.imgCacheDict[dir]
+                else:
+                    coverImg = m.cacheFolder + f"{child.name}({m.currCacheId}).png"
+                    extractCmd = cGen.extractImage(child, coverImg)+"&"                    
+                command = f"{extractCmd}{cGen.snglExternal(audioFile, coverImg, outputFile, fileBitrate)}"
+            
 
             jobs.append(command)
             
@@ -82,6 +97,9 @@ def processDirectory(dir):
         elif(child.suffix in m.validImageExtensions):
             m.imgCacheDict[dir] = child
             imageFound = True
+    
+   
+        
             
     if(len(jobs) > 0):
         m.currCacheId += 1
@@ -92,6 +110,8 @@ def processDirectory(dir):
             f.write(f"file 'file:{job}'\n")
         f.close()
         if(m.genFolder):
+            #folderImage = m.imgCacheDict[dir]
+            #folderCommand = cGen.folderList()
             pass
             # jobs.append(dir)
             # todo: generate folder ffmpeg command

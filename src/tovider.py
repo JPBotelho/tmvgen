@@ -13,7 +13,10 @@ from options import options
 m = options() 
 cGen = cmdGen(overwrite=True)
 
+
 def main():
+    startTime = datetime.now()
+    
     p = Path(os.getcwd())
     m.dirsToProcess.append(p)
     tryProcessDirectory()
@@ -21,6 +24,8 @@ def main():
     while(True):  
         if( m.activeJobs == 0 and len(m.jobQueue) == 0 
            and len(m.dirsToProcess) == 0):
+            elapsedSeconds = (datetime.now() - startTime).total_seconds()
+            print(f"Finished {m.completedJobs} jobs in {elapsedSeconds}s")
             return    
         if m.activeJobs < m.maxJobs:
             if len(m.jobQueue) > 0:
@@ -66,7 +71,6 @@ def processDirectory(dir):
             
         file = PurePath(child)
         if(child.suffix in m.validAudioFiles): 
-            print("\n\n\n", child.suffix)
             audioFiles.append(child)           
         elif(child.suffix in m.validImageExtensions):
             m.imgCacheDict[dir] = child
@@ -146,6 +150,7 @@ def jobCallback(future):
     
     m.mutex.acquire()
     m.activeJobs -= 1
+    m.completedJobs += 1
     m.mutex.release()
     
     

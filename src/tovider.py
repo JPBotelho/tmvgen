@@ -17,14 +17,13 @@ class options:
 
     # generate videos per folder
     genFolder = True
-
     # reencode audio streams
     reenc = False
 
     # ----- GLOBAL JOB VARIABLES
     dirsToProcess = []
     jobQueue = []
-    maxJobs = 1
+    maxJobs = 5
     activeJobs = 0
 
     # MULTITHREADING
@@ -70,7 +69,7 @@ def main():
     
     
 
-def processDirectory():
+def tryProcessDirectory():
     numFiles = 0
     f = None    
     
@@ -78,40 +77,9 @@ def processDirectory():
         print("No more directories to process!")
         return
     dir = m.dirsToProcess.pop()
-    print("Started processing directory: ", dir)
-    # FFMPEG requires files to be in a list
-    # for concat without reencoding
-    if(m.genFolder and not m.reenc):
-        m.currCacheId += 1
-        m.listCacheDict[dir] = f
-        
-    
-    for child in dir.iterdir():
-        if child.is_dir():
-            m.dirsToProcess.append(child)
-            
-        file = PurePath(child)
-        if(child.suffix in m.validAudioFiles):
-            numFiles+=1
-            
-            if(f is None and not m.reenc):
-                f = open(m.cacheFolder + f"list{m.currCacheId}.txt", "w") 
-            #todo: keep track of length in case of folder video
-            #todo: keep track of bitrate in case of folder video
-            
-            m.jobQueue.append(child.resolve())
-                
-            if(m.genFolder and not m.reenc):
-                f.write(f"file 'file:{child.resolve()}'\n")
-                
-        elif(child.suffix in m.validImageExtensions):
-            m.imgCacheDict[dir] = child
-            
-    if(m.genFolder):            
-        if(numFiles > 0):
-            m.jobQueue.append(dir.resolve())
-        if not m.reenc and f is not None:
-            f.close()
+    jobs = processDirectory(dir)
+    for job in jobs:
+        m.jobQueue.append(job)
         
 def startJob(job):
     if(job.is_dir()):
@@ -152,7 +120,49 @@ def startDirectoryJob(job):
         return
     return
     
-    
+# returns list of jobs (for files and folder, if applicable)
+# writes .txt to cache with: 
+#   lowest bitrate
+#   total length
+#   audio files in directory 
+#
+# side effects:
+# appends subdirectories to directoriesToProcess
+def processDirectory(dir):
+    jobs = []
+    minBitrate = sys.maxsize
+    length = 0
+    imageFound = False
+    lastAudioFile = None
+    for child in dir.iterdir():
+        if child.is_dir():
+            m.dirsToProcess.append(child)
+            
+        file = PurePath(child)
+        if(child.suffix in m.validAudioFiles):            
+            audioFile = child.resolve()
+            
+            lastAudioFile = audioFile
+            jobs.append(audioFile)
+            minBitrate = min(minBitrate, getBitrate(audioFile))
+            length += getLength(audioFile)
+            
+        elif(child.suffix in m.validImageExtensions):
+            m.imgCacheDict[dir] = child
+            imageFound = True
+            
+    if(len(jobs) > 0):
+        m.currCacheId += 1
+        f = open(m.cacheFolder + f"{dir.name}({m.currCacheId}).txt", "w")
+        f.write(f" #{length}#{minBitrate}\n")
+        
+        for job in jobs:
+            f.write(f"file 'file:{job}'\n")
+        f.close()
+        if(m.genFolder):
+            jobs.append(dir)
+        
+    return jobs
     
     
 
@@ -167,7 +177,13 @@ def jobCallback(future):
     m.mutex.release()
     
     
+# bitrate in kbps
+def getBitrate(file):
+    return 6
 
+# playtime in seconds
+def getLength(file):
+    return 9
                 
             
         

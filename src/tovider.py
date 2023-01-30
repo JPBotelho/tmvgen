@@ -50,7 +50,7 @@ cGen = cmdGen(overwrite=True)
 def main():
     p = Path(os.getcwd())
     m.dirsToProcess.append(p)
-    processDirectory()
+    tryProcessDirectory()
     
     while(True):  
         # print("EXECUTED")  
@@ -62,7 +62,7 @@ def main():
                 startJob(m.jobQueue.pop())
             else:
                 if(len(m.dirsToProcess) > 0):                    
-                    processDirectory()                    
+                    tryProcessDirectory()                    
     
     
 
@@ -82,6 +82,14 @@ def tryProcessDirectory():
         m.jobQueue.append(job)
         
 def startJob(job):
+    m.mutex.acquire()
+    m.activeJobs += 1
+    m.mutex.release()
+    
+    f = m.pool.submit(subprocess.run, job, shell=True, stderr=subprocess.DEVNULL)
+    f.add_done_callback(jobCallback)
+        
+def startaJob(job):
     if(job.is_dir()):
         return
     print("Started job: ", job)
@@ -89,8 +97,7 @@ def startJob(job):
     # to-do: bitrate
     p = PurePath(job)
     inputPath = job.resolve().__str__()
-    suffix = p.suffix
-    outputFile = job.resolve().__str__().replace(p.suffix, ".mp4")
+    outputFile = inputPath.replace(p.suffix, ".mp4")
     m.mutex.acquire()
     m.activeJobs += 1
     m.mutex.release()
@@ -140,11 +147,16 @@ def processDirectory(dir):
             
         file = PurePath(child)
         if(child.suffix in m.validAudioFiles):            
-            audioFile = child.resolve()
-            
+            audioFile = child.resolve()            
             lastAudioFile = audioFile
-            jobs.append(audioFile)
-            minBitrate = min(minBitrate, getBitrate(audioFile))
+            
+            fileBitrate = getBitrate(audioFile)
+            
+            command = cGen.snglEmbedded(audioFile, replaceWithMP4(audioFile), fileBitrate)
+
+            jobs.append(command)
+            
+            minBitrate = min(minBitrate, fileBitrate)
             length += getLength(audioFile)
             
         elif(child.suffix in m.validImageExtensions):
@@ -160,11 +172,17 @@ def processDirectory(dir):
             f.write(f"file 'file:{job}'\n")
         f.close()
         if(m.genFolder):
-            jobs.append(dir)
+            pass
+            # jobs.append(dir)
+            # todo: generate folder ffmpeg command
         
     return jobs
     
-    
+def replaceWithMP4(file):
+    p = PurePath(file)
+    inputPath = file.resolve().__str__()
+    outputFile = inputPath.replace(p.suffix, ".mp4")
+    return outputFile
 
 def jobCallback(future):
     # todo: fix result.args being messed up
@@ -179,7 +197,7 @@ def jobCallback(future):
     
 # bitrate in kbps
 def getBitrate(file):
-    return 6
+    return 320
 
 # playtime in seconds
 def getLength(file):

@@ -25,7 +25,7 @@ def main():
         if( m.activeJobs == 0 and len(m.jobQueue) == 0 
            and len(m.dirsToProcess) == 0):
             elapsedSeconds = (datetime.now() - startTime).total_seconds()
-            print(f"Finished {m.completedJobs} jobs in {elapsedSeconds}s")
+            print(f"\nFinished {m.completedJobs} jobs in {elapsedSeconds}s")
             return    
         if m.activeJobs < m.maxJobs:
             if len(m.jobQueue) > 0:
@@ -67,7 +67,8 @@ def processDirectory(dir):
     image = None
     for child in dir.iterdir():
         if child.is_dir():
-            m.dirsToProcess.append(child)
+            if m.recursive:
+                m.dirsToProcess.append(child)
             
         file = PurePath(child)
         if(child.suffix in m.validAudioFiles): 
@@ -135,7 +136,9 @@ def startJob(job):
     
     m.jobStartTime[job] = datetime.now()
     
-    print("\nStarting Job: ", job)
+    print("\nStarting Job... ")
+    if(m.printJobs):
+        print(f"\n{job}")
     
     f = m.pool.submit(subprocess.run, job, shell=True, stderr=subprocess.DEVNULL)
     f.add_done_callback(jobCallback)
@@ -144,7 +147,9 @@ def startJob(job):
 def jobCallback(future):
     timeDiff = datetime.now() - m.jobStartTime[future._result.args]
     secsElapsed = timeDiff.total_seconds()
-    print(f"\nFinished Job after {secsElapsed}s: " + future._result.args)
+    print(f"\nFinished Job after {secsElapsed}s: ")
+    if(m.printJobs):
+        print(f"\f{future._result.args}")
     if future.exception() is not None:
         print("\nException encountered!")
     

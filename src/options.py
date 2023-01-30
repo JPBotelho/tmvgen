@@ -9,10 +9,15 @@ import os
 class options:
     validAudioFiles = [ ".flac", ".mp3" ]
     validImageExtensions = [ ".png", ".jpg", ".jpeg" ]
-
+    printJobs = False
+    
+    # disable if you only want this to run on the first directory
+    # that you call it in
+    recursive = True
     # generate videos per track
     genIndiv = True
     extractImg = True
+    
     
     # generate videos per folder
     genFolder = True

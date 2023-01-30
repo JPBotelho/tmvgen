@@ -7,137 +7,154 @@ import subprocess
 from concurrent.futures import ThreadPoolExecutor as Pool
 from threading import Lock
 
+class options:
+    validAudioFiles = [ ".flac", ".mp3" ]
+    validImageExtensions = [ ".png", ".jpg", ".jpeg" ]
 
-# CONFIG
-validAudioFiles = [ ".flac", ".mp3" ]
-validImageExtensions = [ ".png", ".jpg", ".jpeg" ]
-genIndiv = True
-genFolder = True
-genId = 0
-reenc = False
+    # generate videos per track
+    genIndiv = True
 
-# GLOBAL JOB VARIABLES
-dirsToProcess = []
-jobQueue = []
-maxJobs = 5
-activeJobs = 0
+    # generate videos per folder
+    genFolder = True
 
-# MULTITHREADING
-pool = Pool(max_workers=maxJobs)
-mutex = Lock()
+    # reencode audio streams
+    reenc = False
 
-# CACHE
-cacheFolder = os.path.dirname(os.path.realpath(__file__)) + "\\cache\\"
-currCacheId = 0
+    # ----- GLOBAL JOB VARIABLES
+    dirsToProcess = []
+    jobQueue = []
+    maxJobs = 5
+    activeJobs = 0
 
-# Directory -> Path to cover image in cache 
-imgCacheDict = {}
+    # MULTITHREADING
+    pool = Pool(max_workers=maxJobs)
+    mutex = Lock()
 
-# Directory -> Path to list.txt file in cache
-listCacheDict = {}
+    # CACHE
+    cacheFolder = os.path.dirname(os.path.realpath(__file__)) + "\\cache\\"
+    currCacheId = 0
+
+    # Directory -> Path to cover image in cache 
+    imgCacheDict = {}
+
+    # Directory -> Path to list.txt file in cache
+    listCacheDict = {}
+    
+    def __init__(self): 
+        pass       
+        # ----- CONFIG
+        
+m = options() 
+
 def main():
-    global activeJobs
     print("test")
     numArgs = len(sys.argv)
     print("Total Arguments: ", numArgs)
-       
+    
     p = Path(os.getcwd())
-    dirsToProcess.append(p)
+    m.dirsToProcess.append(p)
     processDirectory()
     print("Is valid directory:", p.is_dir())
     
     while(True):  
         # print("EXECUTED")  
-        if( activeJobs == 0 and len(jobQueue) == 0 and len(dirsToProcess) == 0):
+        if( m.activeJobs == 0 and len(m.jobQueue) == 0 
+           and len(m.dirsToProcess) == 0):
             print("ALL JOBS FINISHED")
             return    
-        if activeJobs < maxJobs:
-            if len(jobQueue) > 0:
-                startJob(jobQueue.pop())
+        if m.activeJobs < m.maxJobs:
+            if len(m.jobQueue) > 0:
+                startJob(m.jobQueue.pop())
             else:
-                if(len(dirsToProcess) > 0):
+                if(len(m.dirsToProcess) > 0):
                     print("Processing new directory")
                     processDirectory()                    
-       
+    
     
 
     
     
 
 def processDirectory():
-    global activeJobs, maxJobs, currCacheId
-    if len(dirsToProcess) == 0:
+    if len(m.dirsToProcess) == 0:
         return
-    dir = dirsToProcess.pop()
+    dir = m.dirsToProcess.pop()
     print(dir.resolve())
     
-    imageFound = False
-    audioTrack = None
     # FFMPEG requires files to be in a list
     # for concat without reencoding
-    if(genFolder and not reenc):
-        f = open(cacheFolder + f"list{currCacheId}.txt", "w")    
-        currCacheId += 1
-        listCacheDict[dir] = f
+    if(m.genFolder and not m.reenc):
+        f = open(m.cacheFolder + f"list{m.currCacheId}.txt", "w")    
+        m.currCacheId += 1
+        m.listCacheDict[dir] = f
         
     
     for child in dir.iterdir():
         if child.is_dir():
-            dirsToProcess.append(child)
+            m.dirsToProcess.append(child)
             
         file = PurePath(child)
-        if(child.suffix in validAudioFiles):
+        if(child.suffix in m.validAudioFiles):
             #todo: keep track of length in case of folder video
             #todo: keep track of bitrate in case of folder video
             
-            # Keep track of an audio track in case image was not found
-            # In order to extract embedded cover image
-            audioTrack = child
-            
             # Job can be started automatically
-            if(len(jobQueue) == 0 and activeJobs < maxJobs):
+            if(len(m.jobQueue) == 0 and m.activeJobs < m.maxJobs):
                 startJob(child.resolve())
             else:
-                jobQueue.append(child.resolve())
+                m.jobQueue.append(child.resolve())
                 
-            if(genFolder and not reenc):
+            if(m.genFolder and not m.reenc):
                 f.write(f"file 'file:{child.resolve()}'\n")
                 
-        elif(child.suffix in validImageExtensions):
-            imgCacheDict[dir] = child
+        elif(child.suffix in m.validImageExtensions):
+            m.imgCacheDict[dir] = child
             
-    if(genFolder):            
-        jobQueue.append(dir.resolve())
-        if not reenc:
+    if(m.genFolder):            
+        m.jobQueue.append(dir.resolve())
+        if not m.reenc:
             f.close()
-            
+        
 def startJob(job):
-    global genId
-    global activeJobs
-    
     print("Started job: ", job)
 
     # to-do: bitrate
     p = PurePath(job)
     outputFile = job.resolve().__str__().replace(p.suffix, ".mp4")
-    mutex.acquire()
-    activeJobs += 1
-    mutex.release()
+    m.mutex.acquire()
+    m.activeJobs += 1
+    m.mutex.release()
     #command = f"ffmpeg -y -i  \"{job}\" -filter_complex \"[0:v]scale=-1:-1[vid]\" -map [vid]:v -map 0:a -t 378 -r 1 -movflags +faststart \"{outputFile}\""
     command = f"ffmpeg -y -i \"{job}\" -filter_complex \"[0:v]scale=-1:-1[vid];[vid]loop=loop=-1:size=1:start=0[vid2]\" -map [vid2]:v -map 0:a -b:a 320k -shortest -r 1 -movflags +faststart \"{outputFile}\""
     
     #to-do: remove stdout from showing
     
-    f = pool.submit(subprocess.run, command, shell=True, stderr=subprocess.DEVNULL)
+    f = m.pool.submit(subprocess.run, command, shell=True, stderr=subprocess.DEVNULL)
     f.add_done_callback(jobCallback)
     
+def startFileJob(job):
+    fileDir = job.parents[0]
     
-    
-    
+    # there was no image in the folder
+    if m.imgCacheDict[fileDir] is None:
+        # extract image from file
+        #if it fails, cancel the job
+        pass    
     return
 
+def startDirectoryJob(job):
+    # no image was found in the folder, or was able to be extracted
+    # from the files.
+    # the folder job always runs last.
+    if m.imgCacheDict[job] is None:
+        return
+    return
+    
+    
+    
+    
+
 def jobCallback(future):
-    global activeJobs
     # todo: fix result.args being messed up
     print("Finished: " + future._result.args)
     if future.exception() is not None:
@@ -145,9 +162,9 @@ def jobCallback(future):
     else:
         print("Job finished")
         
-    mutex.acquire()
-    activeJobs -= 1
-    mutex.release()
+    m.mutex.acquire()
+    m.activeJobs -= 1
+    m.mutex.release()
     
     
 

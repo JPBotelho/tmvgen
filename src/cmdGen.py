@@ -42,7 +42,7 @@ class cmdGen:
     # list.txt containing the files to concat
     # output file
     # bitrate
-    def folderCopy(self, inputDir, img, list, out, br):
+    def folderList(self, inputDir, img, list, out, br):
         return
     
     

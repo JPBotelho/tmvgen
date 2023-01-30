@@ -1,4 +1,4 @@
-import time
+from datetime import datetime
 import sys
 import os
 from pathlib import Path
@@ -46,36 +46,7 @@ def tryProcessDirectory():
     jobs = processDirectory(dir)
     for job in jobs:
         m.jobQueue.append(job)
-        
-def startJob(job):
-    m.mutex.acquire()
-    m.activeJobs += 1
-    m.mutex.release()
-    
-    print("\nStarting Job: ", job)
-    
-    f = m.pool.submit(subprocess.run, job, shell=True, stderr=subprocess.DEVNULL)
-    f.add_done_callback(jobCallback)
-   
-    
-def startFileJob(job):
-    fileDir = job.parents[0]
-    
-    # there was no image in the folder
-    if m.imgCacheDict[fileDir] is None:
-        # extract image from file
-        #if it fails, cancel the job
-        pass    
-    return
-
-def startDirectoryJob(job):
-    # no image was found in the folder, or was able to be extracted
-    # from the files.
-    # the folder job always runs last.
-    if m.imgCacheDict[job] is None:
-        return
-    return
-    
+          
 # returns list of jobs (for files and folder, if applicable)
 # writes .txt to cache with: 
 #   lowest bitrate
@@ -133,8 +104,23 @@ def replaceWithMP4(file):
     outputFile = inputPath.replace(p.suffix, ".mp4")
     return outputFile
 
+def startJob(job):
+    m.mutex.acquire()
+    m.activeJobs += 1
+    m.mutex.release()
+    
+    m.jobStartTime[job] = datetime.now()
+    
+    print("\nStarting Job: ", job)
+    
+    f = m.pool.submit(subprocess.run, job, shell=True, stderr=subprocess.DEVNULL)
+    f.add_done_callback(jobCallback)
+    
+
 def jobCallback(future):
-    print("\nFinished Job: " + future._result.args)
+    timeDiff = datetime.now() - m.jobStartTime[future._result.args]
+    secsElapsed = timeDiff.total_seconds()
+    print(f"\nFinished Job after {secsElapsed}s: " + future._result.args)
     if future.exception() is not None:
         print("\nException encountered!")
     

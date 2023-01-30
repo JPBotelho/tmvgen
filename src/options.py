@@ -34,6 +34,9 @@ class options:
     # Directory -> Path to list.txt file in cache
     listCacheDict = {}
     
+    # Job -> Time it was started
+    jobStartTime = {}
+    
     def __init__(self): 
         pass       
         # ----- CONFIG

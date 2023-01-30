@@ -7,6 +7,7 @@ import subprocess
 from concurrent.futures import ThreadPoolExecutor as Pool
 from threading import Lock
 
+from cmdGen import cmdGen
 class options:
     validAudioFiles = [ ".flac", ".mp3" ]
     validImageExtensions = [ ".png", ".jpg", ".jpeg" ]
@@ -23,7 +24,7 @@ class options:
     # ----- GLOBAL JOB VARIABLES
     dirsToProcess = []
     jobQueue = []
-    maxJobs = 5
+    maxJobs = 1
     activeJobs = 0
 
     # MULTITHREADING
@@ -45,29 +46,23 @@ class options:
         # ----- CONFIG
         
 m = options() 
+cGen = cmdGen(overwrite=True)
 
 def main():
-    print("test")
-    numArgs = len(sys.argv)
-    print("Total Arguments: ", numArgs)
-    
     p = Path(os.getcwd())
     m.dirsToProcess.append(p)
     processDirectory()
-    print("Is valid directory:", p.is_dir())
     
     while(True):  
         # print("EXECUTED")  
         if( m.activeJobs == 0 and len(m.jobQueue) == 0 
            and len(m.dirsToProcess) == 0):
-            print("ALL JOBS FINISHED")
             return    
         if m.activeJobs < m.maxJobs:
             if len(m.jobQueue) > 0:
                 startJob(m.jobQueue.pop())
             else:
-                if(len(m.dirsToProcess) > 0):
-                    print("Processing new directory")
+                if(len(m.dirsToProcess) > 0):                    
                     processDirectory()                    
     
     
@@ -76,15 +71,17 @@ def main():
     
 
 def processDirectory():
+    numFiles = 0
+    f = None    
+    
     if len(m.dirsToProcess) == 0:
+        print("No more directories to process!")
         return
     dir = m.dirsToProcess.pop()
-    print(dir.resolve())
-    
+    print("Started processing directory: ", dir)
     # FFMPEG requires files to be in a list
     # for concat without reencoding
     if(m.genFolder and not m.reenc):
-        f = open(m.cacheFolder + f"list{m.currCacheId}.txt", "w")    
         m.currCacheId += 1
         m.listCacheDict[dir] = f
         
@@ -95,14 +92,14 @@ def processDirectory():
             
         file = PurePath(child)
         if(child.suffix in m.validAudioFiles):
+            numFiles+=1
+            
+            if(f is None and not m.reenc):
+                f = open(m.cacheFolder + f"list{m.currCacheId}.txt", "w") 
             #todo: keep track of length in case of folder video
             #todo: keep track of bitrate in case of folder video
             
-            # Job can be started automatically
-            if(len(m.jobQueue) == 0 and m.activeJobs < m.maxJobs):
-                startJob(child.resolve())
-            else:
-                m.jobQueue.append(child.resolve())
+            m.jobQueue.append(child.resolve())
                 
             if(m.genFolder and not m.reenc):
                 f.write(f"file 'file:{child.resolve()}'\n")
@@ -111,26 +108,31 @@ def processDirectory():
             m.imgCacheDict[dir] = child
             
     if(m.genFolder):            
-        m.jobQueue.append(dir.resolve())
-        if not m.reenc:
+        if(numFiles > 0):
+            m.jobQueue.append(dir.resolve())
+        if not m.reenc and f is not None:
             f.close()
         
 def startJob(job):
+    if(job.is_dir()):
+        return
     print("Started job: ", job)
 
     # to-do: bitrate
     p = PurePath(job)
+    inputPath = job.resolve().__str__()
+    suffix = p.suffix
     outputFile = job.resolve().__str__().replace(p.suffix, ".mp4")
     m.mutex.acquire()
     m.activeJobs += 1
     m.mutex.release()
     #command = f"ffmpeg -y -i  \"{job}\" -filter_complex \"[0:v]scale=-1:-1[vid]\" -map [vid]:v -map 0:a -t 378 -r 1 -movflags +faststart \"{outputFile}\""
-    command = f"ffmpeg -y -i \"{job}\" -filter_complex \"[0:v]scale=-1:-1[vid];[vid]loop=loop=-1:size=1:start=0[vid2]\" -map [vid2]:v -map 0:a -b:a 320k -shortest -r 1 -movflags +faststart \"{outputFile}\""
-    
+    #command2 = f"ffmpeg -y -i \"{job}\" -filter_complex \"[0:v]scale=-1:-1[vid];[vid]loop=loop=-1:size=1:start=0[vid2]\" -map [vid2]:v -map 0:a -b:a 320k -shortest -r 1 -movflags +faststart \"{outputFile}\""
+    command = cGen.snglEmbedded(job, outputFile, 320)
     #to-do: remove stdout from showing
-    
     f = m.pool.submit(subprocess.run, command, shell=True, stderr=subprocess.DEVNULL)
     f.add_done_callback(jobCallback)
+    
     
 def startFileJob(job):
     fileDir = job.parents[0]
@@ -156,12 +158,10 @@ def startDirectoryJob(job):
 
 def jobCallback(future):
     # todo: fix result.args being messed up
-    print("Finished: " + future._result.args)
+    print("Finished Job: " + future._result.args)
     if future.exception() is not None:
         print("Exception encountered!")
-    else:
-        print("Job finished")
-        
+    
     m.mutex.acquire()
     m.activeJobs -= 1
     m.mutex.release()

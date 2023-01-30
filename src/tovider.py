@@ -8,41 +8,7 @@ from concurrent.futures import ThreadPoolExecutor as Pool
 from threading import Lock
 
 from cmdGen import cmdGen
-class options:
-    validAudioFiles = [ ".flac", ".mp3" ]
-    validImageExtensions = [ ".png", ".jpg", ".jpeg" ]
-
-    # generate videos per track
-    genIndiv = True
-
-    # generate videos per folder
-    genFolder = True
-    # reencode audio streams
-    reenc = False
-
-    # ----- GLOBAL JOB VARIABLES
-    dirsToProcess = []
-    jobQueue = []
-    maxJobs = 5
-    activeJobs = 0
-
-    # MULTITHREADING
-    pool = Pool(max_workers=maxJobs)
-    mutex = Lock()
-
-    # CACHE
-    cacheFolder = os.path.dirname(os.path.realpath(__file__)) + "\\cache\\"
-    currCacheId = 0
-
-    # Directory -> Path to cover image in cache 
-    imgCacheDict = {}
-
-    # Directory -> Path to list.txt file in cache
-    listCacheDict = {}
-    
-    def __init__(self): 
-        pass       
-        # ----- CONFIG
+from options import options
         
 m = options() 
 cGen = cmdGen(overwrite=True)
@@ -74,7 +40,7 @@ def tryProcessDirectory():
     f = None    
     
     if len(m.dirsToProcess) == 0:
-        print("No more directories to process!")
+        print("\nNo more directories to process!")
         return
     dir = m.dirsToProcess.pop()
     jobs = processDirectory(dir)
@@ -86,28 +52,11 @@ def startJob(job):
     m.activeJobs += 1
     m.mutex.release()
     
+    print("\nStarting Job: ", job)
+    
     f = m.pool.submit(subprocess.run, job, shell=True, stderr=subprocess.DEVNULL)
     f.add_done_callback(jobCallback)
-        
-def startaJob(job):
-    if(job.is_dir()):
-        return
-    print("Started job: ", job)
-
-    # to-do: bitrate
-    p = PurePath(job)
-    inputPath = job.resolve().__str__()
-    outputFile = inputPath.replace(p.suffix, ".mp4")
-    m.mutex.acquire()
-    m.activeJobs += 1
-    m.mutex.release()
-    #command = f"ffmpeg -y -i  \"{job}\" -filter_complex \"[0:v]scale=-1:-1[vid]\" -map [vid]:v -map 0:a -t 378 -r 1 -movflags +faststart \"{outputFile}\""
-    #command2 = f"ffmpeg -y -i \"{job}\" -filter_complex \"[0:v]scale=-1:-1[vid];[vid]loop=loop=-1:size=1:start=0[vid2]\" -map [vid2]:v -map 0:a -b:a 320k -shortest -r 1 -movflags +faststart \"{outputFile}\""
-    command = cGen.snglEmbedded(job, outputFile, 320)
-    #to-do: remove stdout from showing
-    f = m.pool.submit(subprocess.run, command, shell=True, stderr=subprocess.DEVNULL)
-    f.add_done_callback(jobCallback)
-    
+   
     
 def startFileJob(job):
     fileDir = job.parents[0]
@@ -185,10 +134,9 @@ def replaceWithMP4(file):
     return outputFile
 
 def jobCallback(future):
-    # todo: fix result.args being messed up
-    print("Finished Job: " + future._result.args)
+    print("\nFinished Job: " + future._result.args)
     if future.exception() is not None:
-        print("Exception encountered!")
+        print("\nException encountered!")
     
     m.mutex.acquire()
     m.activeJobs -= 1

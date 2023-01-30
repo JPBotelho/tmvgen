@@ -1,3 +1,18 @@
+// BACKGROUND:
+
+left aligned:
+ffmpeg -loop 1 -framerate 1 -i bg.jpg -loop 1 -framerate 1 -i cover.jpg  -f concat -safe 0 -i rem.txt -filter_complex "[0:v][1:v]overlay=(W-w)/7:(H-h)/2[out]" -map [out]:v -c:v libx264 -map 2:a -c:a copy -shortest output.mp4
+
+right aligned:
+ffmpeg -y -loop 1 -framerate 1 -i bg.jpg -loop 1 -framerate 1 -i cover.jpg  -f concat -safe 0 -i rem.txt -filter_complex "[0:v]scale=1920:1080[bg];[1:v]scale=800:800[cover];[bg][cover]overlay=(W-w)*6/7:(H-h)/2[out]" -map [out]:v -c:v libx264 -map 2:a -c:a copy -shortest output.mp4
+
+centered:
+ffmpeg -y -loop 1 -framerate 1 -i bg.jpg -loop 1 -framerate 1 -i cover.jpg  -f concat -safe 0 -i rem.txt -filter_complex "[0:v]scale=1920:1080[bg];[1:v]scale=800:800[cover];[bg][cover]overlay=(W-w)/2:(H-h)/2[out]" -map [out]:v -c:v libx264 -map 2:a -c:a copy -shortest output.mp4
+
+centered with text:
+ffmpeg -y -loop 1 -framerate 1 -i bg.jpg -loop 1 -framerate 1 -i cover.jpg  -f concat -safe 0 -i rem.txt -filter_complex "[0:v]scale=1920:1080[bg];[bg]drawtext="fontsize=55:fontfile=f.ttf:text='ALBUM TITLE':x=W/2-text_w/2:y=4*H/5"[bg1];[1:v]scale=700:700[cover];[bg1][cover]overlay=(W-w)/2:(H-h)/4[out]" -map [out]:v -c:v libx264 -map 2:a -c:a copy -shortest output.mp4
+
+
 
 // MULTIPLE VIDEOS WITH REENCODE:
 
@@ -39,6 +54,7 @@ ffmpeg
 // SINGLE VIDEO ALTERNATIVE ???
 ffmpeg -i first.mp3 -f concat -i list.txt -c:v libx264 -c:a copy -t 60 -r 24 output.mp4
 
+Mirror directory structure instead of outputting to same folder
 
 
 Recursive: Launch it in a directory and it will run itself in subdirectories
@@ -114,10 +130,10 @@ ffmpeg -loop 1 -framerate 1 -i "folder.jpg" -i  "first.mp3"  -i "second.mp3" -fi
 
 
 //this seems to work for single:
-ffmpeg -loop 1 -framerate 
-1 -i "folder.jpg" -i "first.mp3" -map 0:v -map 1:a -b:a 320k -shortest -r 1 -movflags +faststart "output.mp4"
+
+ ffmpeg -i test.mp3 -an -vcodec copy cover.jpg;ffmpeg -loop 1 -framerate 1 -i "cover.jpg" -i "test.mp3" -map 0:v -map 1:a -b:a 320k -shortest -r 1 -movflags +faststart "output.mp4"
 
 // works for single and youtube: 
-ffmpeg -i "first.mp3" -filter_complex "[0:v]scale=-1:-1[vid];[vid]loop=loop=-1:size=1:start=0[vid2]" -map [vid2]:v -map 0:a -b:a 320k -shortest -r 1 -movflags +faststart "output.mp4"
+ffmpeg -i "second.mp3" -filter_complex "[0:v]scale=-1:-1[vid];[vid]loop=loop=-1:size=1:start=0[vid2]" -map [vid2]:v -map 0:a -b:a 320k -shortest -r 1 -movflags +faststart "output.mp4"
 
 ffmpeg -loop 1 -framerate 1 -i "folder.jpg" -i  "first.mp3" -i "second.mp3" -filter_complex "[0:v]scale=600:-1[vid]; [1:a][2:a]concat=n=2:v=0:a=1[final]" -map [vid]:v -map [final]:a -t 378 -r 1 -movflags +faststart "output.mp4"

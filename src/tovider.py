@@ -19,7 +19,6 @@ def main():
     tryProcessDirectory()
     
     while(True):  
-        # print("EXECUTED")  
         if( m.activeJobs == 0 and len(m.jobQueue) == 0 
            and len(m.dirsToProcess) == 0):
             return    
@@ -56,65 +55,60 @@ def tryProcessDirectory():
 # side effects:
 # appends subdirectories to directoriesToProcess
 def processDirectory(dir):
+    audioFiles = []
     jobs = []
     minBitrate = sys.maxsize
     length = 0
-    imageFound = False
-    lastAudioFile = None
+    image = None
     for child in dir.iterdir():
         if child.is_dir():
             m.dirsToProcess.append(child)
             
         file = PurePath(child)
-        if(child.suffix in m.validAudioFiles):            
-            audioFile = child.resolve()            
-            lastAudioFile = audioFile
-            
-            fileBitrate = getBitrate(audioFile)
-            
-            # Individual file commands can be one of three:
-            # Generate from embedded cover art (-loop filter) (snglEmbedded)
-            # Generate from embedded cover art (extract image to cache first)
-            # NOTIMPLEMENTED Generate from folder image (snglExternal)
-            
-            outputFile = replaceWithMP4(audioFile)
-            if(not m.extractImg):
-                command = cGen.snglEmbedded(audioFile, outputFile, fileBitrate)
-            else:
-                if(imageFound):
-                    coverImg = m.imgCacheDict[dir]
-                else:
-                    coverImg = m.cacheFolder + f"{child.name}({m.currCacheId}).png"
-                    extractCmd = cGen.extractImage(child, coverImg)+"&"                    
-                command = f"{extractCmd}{cGen.snglExternal(audioFile, coverImg, outputFile, fileBitrate)}"
-            
-
-            jobs.append(command)
-            
-            minBitrate = min(minBitrate, fileBitrate)
-            length += getLength(audioFile)
-            
+        if(child.suffix in m.validAudioFiles): 
+            print("\n\n\n", child.suffix)
+            audioFiles.append(child)           
         elif(child.suffix in m.validImageExtensions):
-            m.imgCacheDict[dir] = child
-            imageFound = True
+            #m.imgCacheDict[dir] = child
+            image = child
     
    
+    if(len(audioFiles) <= 0):
+        return []
+    
+    
+    for audioFile in audioFiles:        
+        fileBitrate = getBitrate(audioFile)
         
-            
-    if(len(jobs) > 0):
-        m.currCacheId += 1
+        # Individual file commands can be one of three:
+        # Generate from embedded cover art (-loop filter) (snglEmbedded)
+        # Generate from embedded cover art (extract image to cache first)
+        # NOTIMPLEMENTED Generate from folder image (snglExternal)
+        
+        outputFile = replaceWithMP4(audioFile)
+        if(not m.extractImg):
+            command = cGen.snglEmbedded(audioFile, outputFile, fileBitrate)
+        else:
+            if(image is not None):
+                coverImg = image
+                command = cGen.snglExternal(audioFile, coverImg, outputFile, fileBitrate)
+            else:
+                coverImg = m.cacheFolder + f"{audioFile.name}({m.currCacheId}).png"
+                extractCmd = cGen.extractImage(audioFile, coverImg)+"&"                    
+                command = f"{extractCmd}{cGen.snglExternal(audioFile, coverImg, outputFile, fileBitrate)}"
+        
+
+        jobs.append(command)
+        
+        minBitrate = min(minBitrate, fileBitrate)
+        length += getLength(audioFile)
+        
+    if(m.genFolder):
         f = open(m.cacheFolder + f"{dir.name}({m.currCacheId}).txt", "w")
-        f.write(f" #{length}#{minBitrate}\n")
-        
-        for job in jobs:
-            f.write(f"file 'file:{job}'\n")
+        f.write(f" #{length}#{minBitrate}\n")        
+        for audioFile in audioFiles:
+            f.write(f"file 'file:{audioFile.resolve()}'\n")
         f.close()
-        if(m.genFolder):
-            #folderImage = m.imgCacheDict[dir]
-            #folderCommand = cGen.folderList()
-            pass
-            # jobs.append(dir)
-            # todo: generate folder ffmpeg command
         
     return jobs
     

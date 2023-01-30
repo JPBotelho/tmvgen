@@ -18,7 +18,7 @@ class options:
     # ----- GLOBAL JOB VARIABLES
     dirsToProcess = []
     jobQueue = []
-    maxJobs = 5
+    maxJobs = 2
     activeJobs = 0
 
     # MULTITHREADING

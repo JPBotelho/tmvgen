@@ -24,7 +24,7 @@ def main():
             return    
         if m.activeJobs < m.maxJobs:
             if len(m.jobQueue) > 0:
-                startJob(m.jobQueue.pop())
+                startJob(m.jobQueue.pop(0))
             else:
                 if(len(m.dirsToProcess) > 0):                    
                     tryProcessDirectory()                    
@@ -41,7 +41,7 @@ def tryProcessDirectory():
     if len(m.dirsToProcess) == 0:
         print("\nNo more directories to process!")
         return
-    dir = m.dirsToProcess.pop()
+    dir = m.dirsToProcess.pop(0)
     jobs = processDirectory(dir)
     for job in jobs:
         m.jobQueue.append(job)
@@ -69,7 +69,7 @@ def processDirectory(dir):
             print("\n\n\n", child.suffix)
             audioFiles.append(child)           
         elif(child.suffix in m.validImageExtensions):
-            #m.imgCacheDict[dir] = child
+            m.imgCacheDict[dir] = child
             image = child
     
    
@@ -82,8 +82,8 @@ def processDirectory(dir):
         
         # Individual file commands can be one of three:
         # Generate from embedded cover art (-loop filter) (snglEmbedded)
-        # Generate from embedded cover art (extract image to cache first)
-        # NOTIMPLEMENTED Generate from folder image (snglExternal)
+        # Generate from embedded cover art (extract image to cache first) (snglExternal)
+        # Generate from folder image (snglExternal)
         
         outputFile = replaceWithMP4(audioFile)
         if(not m.extractImg):
@@ -93,7 +93,9 @@ def processDirectory(dir):
                 coverImg = image
                 command = cGen.snglExternal(audioFile, coverImg, outputFile, fileBitrate)
             else:
-                coverImg = m.cacheFolder + f"{audioFile.name}({m.currCacheId}).png"
+                # extract cover image for this file
+                coverImg = m.cacheFolder + f"({m.currCacheId}).png"
+                m.imgCacheDict[dir] = coverImg
                 extractCmd = cGen.extractImage(audioFile, coverImg)+"&"                    
                 command = f"{extractCmd}{cGen.snglExternal(audioFile, coverImg, outputFile, fileBitrate)}"
         
@@ -104,11 +106,15 @@ def processDirectory(dir):
         length += getLength(audioFile)
         
     if(m.genFolder):
-        f = open(m.cacheFolder + f"{dir.name}({m.currCacheId}).txt", "w")
+        folderList = m.cacheFolder + f"{dir.name}({m.currCacheId}).txt"
+        f = open(folderList, "w")
         f.write(f" #{length}#{minBitrate}\n")        
         for audioFile in audioFiles:
             f.write(f"file 'file:{audioFile.resolve()}'\n")
         f.close()
+        
+        folderCommand = cGen.folderList(m.imgCacheDict[dir], folderList, str(dir)+"/folderVideo.mp4")
+        jobs.append(folderCommand)
         
     return jobs
     

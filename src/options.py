@@ -9,7 +9,7 @@ class options:
     # generate videos per track
     genIndiv = True
     extractImg = True
-
+    
     # generate videos per folder
     genFolder = True
     # reencode audio streams
@@ -18,7 +18,7 @@ class options:
     # ----- GLOBAL JOB VARIABLES
     dirsToProcess = []
     jobQueue = []
-    maxJobs = 2
+    maxJobs = 1
     activeJobs = 0
 
     # MULTITHREADING

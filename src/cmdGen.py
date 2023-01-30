@@ -33,7 +33,7 @@ class cmdGen:
                   f"-i \"{inp}\" "
                   "-map 0:v " 
                   "-map 1:a " 
-                  f"-b:a {br}k "
+                  f"-c:a copy "
                   f"-shortest -r 1 -movflags +faststart \"{out}\"")
         return command
     
@@ -49,8 +49,13 @@ class cmdGen:
     # list.txt containing the files to concat
     # output file
     # bitrate
-    def folderList(self, inputDir, img, list, out, br):
-        return
+    def folderList(self, img, list, out):
+        command = (f"ffmpeg {self.owflg} -loop 1 -framerate 1 "
+                    f"-i \"{img}\" "
+                    f"-f concat -safe 0 -i \"{list}\" "
+                    "-c:v libx264 "
+                    f"-c:a copy -shortest \"{out}\"")
+        return command
     
     
     # concatenates together video files generated for the albums
